@@ -1,0 +1,122 @@
+import pandas as pd
+import sqlite3
+import openai
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+import time
+
+# OpenAI GPT-4o API key setup
+openai.api_key = "your_gpt4o_api_key"
+
+# Database setup
+DB_NAME = "classification_cache.db"
+TABLE_NAME = "logs"
+
+# Initialize database
+def initialize_database():
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(f"""
+        CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+            exception TEXT PRIMARY KEY,
+            classification TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+# Cache check
+def fetch_cached_classification(exception):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT classification FROM {TABLE_NAME} WHERE exception = ?", (exception,))
+    result = cursor.fetchone()
+    conn.close()
+    return result[0] if result else None
+
+# Cache insertion
+def cache_classification(exception, classification):
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    cursor.execute(f"INSERT OR IGNORE INTO {TABLE_NAME} (exception, classification) VALUES (?, ?)", (exception, classification))
+    conn.commit()
+    conn.close()
+
+# GPT-4o API call with rate limit handling
+def classify_exception(exception):
+    cached_result = fetch_cached_classification(exception)
+    if cached_result:
+        return cached_result
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a software error classifier."},
+                {"role": "user", "content": f"Classify this exception: {exception}. Format: Kategori - Platform - Özet - Extra Details"}
+            ]
+        )
+        classification = response['choices'][0]['message']['content']
+        cache_classification(exception, classification)
+        return classification
+    except openai.error.RateLimitError:
+        time.sleep(5)  # Wait for rate limit reset
+        return classify_exception(exception)
+    except Exception as e:
+        print(f"Error during GPT-4o classification: {e}")
+        return "Error during classification"
+
+# Filter logs
+def filter_logs(df):
+    three_months_ago = datetime.now() - timedelta(days=90)
+    df['Started'] = pd.to_datetime(df['Started'], errors='coerce')
+    return df[
+        (df['Status'] == "Failed") &
+        (df['Exception'].str.contains("Application", na=False)) &
+        (df['Started'] >= three_months_ago)
+    ]
+
+# Visualize results
+def visualize_classifications(df):
+    df['Category'] = df['LLM_Classification'].str.split(' - ').str[0]  # Extract category
+    category_counts = df['Category'].value_counts()
+
+    plt.figure(figsize=(10, 6))
+    category_counts.plot(kind='bar', color='skyblue')
+    plt.title("Error Categories Distribution")
+    plt.xlabel("Category")
+    plt.ylabel("Count")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+# Main pipeline
+def main(csv_file_path):
+    # Initialize DB
+    initialize_database()
+
+    # Read CSV
+    df = pd.read_csv(csv_file_path)
+
+    # Filter logs
+    filtered_df = filter_logs(df)
+
+    # Classify exceptions
+    classifications = []
+    for exception in filtered_df['Exception']:
+        classification = classify_exception(exception)
+        classifications.append(classification)
+
+    # Add classifications to DataFrame
+    filtered_df['LLM_Classification'] = classifications
+
+    # Save to CSV
+    filtered_df.to_csv("classified_logs.csv", index=False)
+
+    # Visualize results
+    visualize_classifications(filtered_df)
+
+# Run main pipeline
+if __name__ == "__main__":
+    csv_path = "logs.csv"  # Replace with your CSV file path
+    main(csv_path)
