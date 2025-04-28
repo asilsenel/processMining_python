@@ -7,18 +7,12 @@ Created on Mon Apr 28 15:57:59 2025
 
 # main.py
 
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 28 17:30:00 2025
-
-@author: asil.senel
-"""
 
 from config import PROJECT_FOLDER_PATH, CSV_PATH, MATCHING_THRESHOLD
 from xaml_module import extract_xaml_activities
 from csv_module import extract_relevant_exceptions
 from matching_module import match_selectors
-
+from visualization_module import visualize_matched_selectors
 
 def main():
     print("🏁 MAIN çalışıyor...")
@@ -35,7 +29,10 @@ def main():
     #return df_xaml, df_csv
     
     df_matched = match_selectors(df_xaml, df_csv, threshold=MATCHING_THRESHOLD)
+    visualize_matched_selectors(df_matched)
     return df_matched, df_xaml, df_csv
+
+    
 
 if __name__ == "__main__":
     df_matched, df_xaml, df_csv = main()
