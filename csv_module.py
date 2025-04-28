@@ -7,56 +7,33 @@ Created on Mon Apr 28 2025
 
 import pandas as pd
 import re
-
-def extract_selector_from_message(message):
-    """
-    Exception Reason içinden asıl hataya sebep olan selector'ı çeker.
-    """
-    if not isinstance(message, str):
-        return None
-
-    try:
-        # "Search failed at selector tag:" ile "The closest matches found are:" arasını bul
-        pattern = r"Search failed at selector tag:\s*\[\d+\]\s*(<.*?>)\s*The closest matches found are:"
-        match = re.search(pattern, message, re.DOTALL)
-
-        if match:
-            selector = match.group(1).strip()
-            return selector
-        else:
-            # Eğer tam pattern bulunamazsa daha basit bir alternatif
-            pattern_simple = r"Search failed at selector tag:\s*\[\d+\]\s*(<.*?>)"
-            match_simple = re.search(pattern_simple, message, re.DOTALL)
-            if match_simple:
-                selector = match_simple.group(1).strip()
-                return selector
-
-    except Exception as e:
-        print(f"[extract_selector_from_message ERROR] {e}")
-
-    return None
-
+from datetime import datetime, timedelta
+from config import DAY_LIMIT_ENABLED, DAY_LIMIT_DAYS
 
 def extract_relevant_exceptions(csv_path):
-    """
-    Verilen CSV dosyasından ApplicationException ve UI selector hatalarını çıkarır.
-    Output: DataFrame (Reference, Exception_Message, Selector)
-    """
     print("[CSV] Relevant Exception kayıtları çıkarılıyor...")
-    print(f"[CSV] CSV dosyası okunuyor... Path: {csv_path}")
-
     df = pd.read_csv(csv_path)
 
-    # Sadece 'ApplicationException' içeren kayıtları seç
+    # Tarih filtresi uygulanacak mı?
+    if DAY_LIMIT_ENABLED:
+        print(f"[CSV] DAY_LIMIT_ENABLED aktif. Son {DAY_LIMIT_DAYS} gün içindeki kayıtlar alınacak.")
+        df['Started'] = pd.to_datetime(df['Started'], errors='coerce')
+        time_limit = datetime.utcnow() - timedelta(days=DAY_LIMIT_DAYS)
+        df = df[df['Started'] >= time_limit]
+        print(f"[CSV] Zaman filtresinden sonra kalan kayıtlar: {len(df)} adet.")
+    else:
+        print("[CSV] DAY_LIMIT_ENABLED pasif. Tüm kayıtlar kullanılacak.")
+
+    # Sadece 'ApplicationException' içeren kayıtları seçelim
     df_filtered = df[df['Exception'].notna() & df['Exception'].str.contains('ApplicationException', na=False)]
     print(f"[CSV] {len(df_filtered)} adet ApplicationException bulundu.")
 
-    # Hedef mesaj pattern'i ile filtrele
+    # Belirli hata mesajı pattern'i ile süzelim
     target_phrase = "Exception message: Could not find the UI element corresponding to this selector:"
     df_filtered = df_filtered[df_filtered['Exception Reason'].str.contains(target_phrase, na=False)]
     print(f"[CSV] {len(df_filtered)} adet 'Could not find UI element' hatası bulundu.")
 
-    # Selectorları çıkar
+    # Selectorları çıkaralım
     records = []
     for idx, row in df_filtered.iterrows():
         exception_message = row.get('Exception Reason', '')
@@ -70,6 +47,43 @@ def extract_relevant_exceptions(csv_path):
             })
 
     print(f"[CSV] {len(records)} adet selector başarıyla çıkarıldı.")
+    df_result = pd.DataFrame(records)
+    return df_result
 
-    df_extracted = pd.DataFrame(records)
-    return df_extracted
+def extract_selector_from_message(message):
+    """
+    Exception Reason içinden selector'ı ayıkla.
+    Yeni mantık: 
+    'Could not find the UI element corresponding to this selector:' ile
+    'Search failed at selector tag:' arasında kalan kısım alınacak.
+    """
+    if not isinstance(message, str):
+        return None
+
+    try:
+        start_text = "Could not find the UI element corresponding to this selector:"
+        end_text = "Search failed at selector tag:"
+
+        start_idx = message.index(start_text) + len(start_text)
+        end_idx = message.index(end_text)
+
+        selector_block = message[start_idx:end_idx].strip()
+
+        # [1], [2] gibi baştaki numaraları sil
+        selector_lines = selector_block.splitlines()
+        cleaned_selectors = []
+        for line in selector_lines:
+            line = line.strip()
+            if line.startswith('['):
+                # "]" işaretinden sonrasını al
+                closing_idx = line.find(']')
+                if closing_idx != -1:
+                    line = line[closing_idx+1:].strip()
+            if line:  # boş olmayan satırları al
+                cleaned_selectors.append(line)
+
+        final_selector = "\n".join(cleaned_selectors)
+        return final_selector if final_selector else None
+
+    except (ValueError, IndexError):
+        return None
