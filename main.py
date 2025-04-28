@@ -14,7 +14,7 @@ Created on Mon Apr 28 17:30:00 2025
 @author: asil.senel
 """
 
-from config import PROJECT_FOLDER_PATH, CSV_PATH
+from config import PROJECT_FOLDER_PATH, CSV_PATH, MATCHING_THRESHOLD
 from xaml_module import extract_xaml_activities
 from csv_module import extract_relevant_exceptions
 from matching_module import match_selectors
@@ -34,7 +34,7 @@ def main():
     # (Şimdilik sadece DF'leri return ediyoruz, ileride eşleşme işlemi buraya eklenecek.)
     #return df_xaml, df_csv
     
-    df_matched = match_selectors(df_xaml, df_csv)
+    df_matched = match_selectors(df_xaml, df_csv, threshold=MATCHING_THRESHOLD)
     return df_matched, df_xaml, df_csv
 
 if __name__ == "__main__":
