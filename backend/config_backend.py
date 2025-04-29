@@ -5,8 +5,8 @@ Created on Tue Apr 29 08:49:35 2025
 @author: asil.senel
 """
 
-# config.py
+# config_backend.py
 
 # Varsayılan klasörler
-PROJECT_ROOT_PATH = "data/projects"
-QUEUE_ROOT_PATH = "data/queue_items"
+PROJECT_ROOT_PATH = "C:/Users/asil.senel/Desktop/Kişisel/ProjectFolders"
+QUEUE_ROOT_PATH = "C:/Users/asil.senel/Desktop/Kişisel/QueueItems"
