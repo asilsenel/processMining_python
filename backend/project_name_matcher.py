@@ -6,29 +6,47 @@ Created on Tue Apr 30 2025
 @author: asil.senel
 """
 
+
+# backend/project_name_matcher.py
+
 import os
-from rapidfuzz import fuzz, process
-from config_backend import PROJECT_ROOT_PATH, QUEUE_ROOT_PATH
+from backend.config_backend import PROJECT_ROOT_PATH, QUEUE_ROOT_PATH
+from rapidfuzz import fuzz
 
-def find_best_matches(process_name):
-    # --- 1. Tüm proje klasörlerini ve csv dosyalarını oku ---
-    project_folders = [f for f in os.listdir(PROJECT_ROOT_PATH) if os.path.isdir(os.path.join(PROJECT_ROOT_PATH, f))]
-    queue_files = [f for f in os.listdir(QUEUE_ROOT_PATH) if f.endswith(".csv")]
+def list_all_projects():
+    """Project klasörlerinin isimlerini listeler."""
+    projects = []
+    for item in os.listdir(PROJECT_ROOT_PATH):
+        item_path = os.path.join(PROJECT_ROOT_PATH, item)
+        if os.path.isdir(item_path):
+            projects.append(item)
+    return projects
 
-    # --- 2. En iyi proje klasörü eşleşmesini bul ---
-    best_project_match, project_score = process.extractOne(process_name, project_folders, scorer=fuzz.partial_ratio)
+def find_best_matches(process_name: str):
+    """Seçilen süreç adına göre proje ve queue dosyası eşleşmesi yapar."""
+    project_folders = os.listdir(PROJECT_ROOT_PATH)
+    queue_files = os.listdir(QUEUE_ROOT_PATH)
 
-    # --- 3. En iyi CSV dosya eşleşmesini bul ---
-    best_queue_match, queue_score = process.extractOne(process_name, queue_files, scorer=fuzz.partial_ratio)
+    best_project = None
+    best_queue = None
+    best_project_score = 0
+    best_queue_score = 0
 
-    # --- 4. Path'leri oluştur ---
-    project_folder_path = os.path.join(PROJECT_ROOT_PATH, best_project_match) if best_project_match else None
-    csv_file_path = os.path.join(QUEUE_ROOT_PATH, best_queue_match) if best_queue_match else None
+    for project in project_folders:
+        score = fuzz.ratio(process_name.lower(), project.lower())
+        if score > best_project_score:
+            best_project_score = score
+            best_project = project
 
-    # --- 5. Sonuçları döndür ---
+    for queue in queue_files:
+        score = fuzz.ratio(process_name.lower(), queue.lower())
+        if score > best_queue_score:
+            best_queue_score = score
+            best_queue = queue
+
     return {
-        "project_folder_path": project_folder_path,
-        "csv_file_path": csv_file_path,
-        "project_score": project_score,
-        "queue_score": queue_score
+        "project_folder_path": os.path.join(PROJECT_ROOT_PATH, best_project) if best_project else None,
+        "queue_file_path": os.path.join(QUEUE_ROOT_PATH, best_queue) if best_queue else None,
+        "project_match_score": best_project_score,
+        "queue_match_score": best_queue_score
     }
