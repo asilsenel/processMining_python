@@ -1,4 +1,4 @@
-# config.py
+# config_mining.py
 
 # OpenAI API Key
 OPENAI_API_KEY = "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"
@@ -18,3 +18,6 @@ DAY_LIMIT_DAYS = 60
 
 #FuzzyMatch Threshold:
 MATCHING_THRESHOLD = 90
+
+PROJECT_FOLDER_PATH = "data/projects/ExampleProject"  # Bu runtime'da değiştirilecek!
+CSV_PATH = "data/queue_items/ExampleQueue.csv"        # Bu runtime'da değiştirilecek!
