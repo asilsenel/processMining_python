@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Process Mining Analizi</title>
+    <style>
+        /* CSS kodlarınız buraya */
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+            background-color: #f4f4f4; /* Hafif arka plan rengi */
+        }
+        .container { 
+            max-width: 800px; 
+            margin: auto; 
+            padding: 20px; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* Hafif gölge */
+            background-color: #fff; /* Beyaz arka plan */
+            position: relative; /* Kapatma butonu için */
+        }
+        h1 { 
+            color: #333; 
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        label { 
+            display: block; 
+            margin-top: 15px; /* Boşluk artırıldı */
+            font-weight: bold; 
+            color: #555;
+        }
+        select, input[type="number"] { 
+            width: calc(100% - 22px); /* Padding'den dolayı ayarlama */
+            padding: 10px; /* Padding artırıldı */
+            margin-top: 8px; /* Boşluk artırıldı */
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            box-sizing: border-box; 
+            font-size: 16px; /* Font boyutu artırıldı */
+        }
+        button { 
+            background-color: #007bff; /* Mavi tonu */
+            color: white; 
+            padding: 12px 20px; /* Padding artırıldı */
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-top: 25px; /* Boşluk artırıldı */
+            font-size: 16px; /* Font boyutu artırıldı */
+            transition: background-color 0.3s ease; /* Hover efekti */
+        }
+        button:hover { 
+            background-color: #0056b3; 
+        }
+        #loadingMessage { 
+            margin-top: 20px; 
+            color: #007bff; 
+            font-weight: bold; 
+            display: none; 
+            text-align: center;
+        }
+        #shutdownButton {
+            background-color: #dc3545; /* Kırmızı renk */
+            position: absolute; /* Konumu sabitle */
+            top: 20px; /* Yukarıdan boşluk */
+            right: 20px; /* Sağdan boşluk */
+            margin-top: 0; /* Diğer butonlarla hizalamak için sıfırla */
+            padding: 8px 15px; /* Daha küçük buton */
+            font-size: 14px; /* Daha küçük font */
+        }
+        #shutdownButton:hover {
+            background-color: #c82333;
+        }
+        input[type="checkbox"] {
+            margin-right: 8px;
+            width: auto; /* Checkbox için genişlik ayarı */
+            vertical-align: middle; /* Metinle hizala */
+        }
+        label input[type="checkbox"] {
+            display: inline; /* Checkbox ve metnin aynı satırda olması için */
+            width: auto;
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <button id="shutdownButton" onclick="shutdownApp()">Uygulamayı Kapat</button>
+
+        <h1>Process Mining Analiz Dashboard</h1>
+        <form id="analyzeForm" action="/analyze" method="post">
+            <label for="process_name">Süreç Seçin:</label>
+            <select id="process_name" name="process_name" required>
+                {% for process in process_names %}
+                    <option value="{{ process }}">{{ process }}</option>
+                {% endfor %}
+            </select>
+
+            <label>
+                <input type="checkbox" id="day_limit_enabled" name="day_limit_enabled" value="true" {% if default_day_limit_enabled %}checked{% endif %}>
+                Gün Limiti Aktif
+            </label>
+
+            <label for="day_limit_days">Gün Sayısı (Limit Aktifse):</label>
+            <input type="number" id="day_limit_days" name="day_limit_days" value="{{ default_day_limit_days }}" min="1">
+
+            <button type="submit">Analizi Başlat</button>
+        </form>
+
+        <p id="loadingMessage">Analiz başlatılıyor, lütfen bekleyin...</p>
+    </div>
+
+    <script>
+        // Gün Limiti Aktif checkbox'ının durumuna göre Gün Sayısı input'unu etkinleştir/devre dışı bırak
+        document.addEventListener('DOMContentLoaded', function() {
+            var dayLimitCheckbox = document.getElementById('day_limit_enabled');
+            var dayLimitDaysInput = document.getElementById('day_limit_days');
+
+            function toggleDayLimitInput() {
+                dayLimitDaysInput.disabled = !dayLimitCheckbox.checked;
+            }
+
+            dayLimitCheckbox.addEventListener('change', toggleDayLimitInput);
+            toggleDayLimitInput(); // Sayfa yüklendiğinde başlangıç durumunu ayarla
+
+            // Form gönderildiğinde loading mesajını göster
+            document.getElementById('analyzeForm').addEventListener('submit', function() {
+                document.getElementById('loadingMessage').style.display = 'block';
+            });
+        });
+
+        // Kapatma butonunun işlevi
+        function shutdownApp() {
+            if (confirm("Uygulamayı kapatmak istediğinizden emin misiniz?")) {
+                fetch('/shutdown')
+                    .then(response => {
+                        console.log('Sunucu kapatma isteği gönderildi:', response);
+                        window.close(); 
+                    })
+                    .catch(error => {
+                        console.error('Kapatma isteği sırasında hata oluştu:', error);
+                        alert("Uygulama kapatılırken bir hata oluştu: " + error.message + "\nLütfen Görev Yöneticisi'nden uygulamayı manuel olarak sonlandırın.");
+                    });
+            }
+        }
+    </script>
+</body>
+</html>
