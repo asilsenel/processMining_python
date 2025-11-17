@@ -4,7 +4,6 @@ import os
 
 class AppSettings:
     # OpenAI API Key (Şu an kullanılmıyor ama ilerisi için hazır)
-    OPENAI_API_KEY: str = "sk-proj-..."
     OPENAI_MODEL: str = "gpt-4o"
 
     # Tarih filtresi ayarları
@@ -51,4 +50,5 @@ class AppSettings:
             if hasattr(cls, key):
                 setattr(cls, key, value)
             else:
+
                 print(f"Uyarı: '{key}' adında bir ayar bulunamadı.")
